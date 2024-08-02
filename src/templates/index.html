@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        :root {
+            --primary-color: #00a4e0;
+            --secondary-color: #f2f2f2;
+            --text-color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-section {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        input[type="text"] {
+            width: calc(100% - 100px);
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button[type="submit"] {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #007bb5;
+            transform: scale(1.05);
+        }
+
+        .results-section {
+            text-align: left;
+        }
+
+        .results-title {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .results-title img {
+            margin-left: 10px;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+        }
+
+        .tooltip-box {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: calc(100% + 10px);
+            transform: translateY(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 5px;
+            white-space: nowrap;
+        }
+
+        .program-cell:hover .tooltip-box {
+            display: block;
+        }
+
+        .results-title img:hover + .tooltip-box,
+        .results-title img:focus + .tooltip-box,
+        .results-title img:active + .tooltip-box {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+
+        tr:hover {
+            background-color: #e0e0e0;
+        }
+
+        .highlight {
+            background-color: rgba(255, 0, 0, 0.2);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                width: 90%;
+                padding: 10px;
+            }
+
+            input[type="text"] {
+                width: 100%;
+            }
+
+            button[type="submit"] {
+                width: 100%;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Department Search</h1>
+    </header>
+    <div class="container">
+        <div class="search-section">
+            <form id="searchForm" action="/search" method="post">
+                <input type="text" name="last_name" id="last_name_input" placeholder="Enter last name" aria-label="Enter last name" required value="{{ last_name_input }}">
+                <button type="submit" aria-label="Search"><i class="fas fa-search"></i> Search</button>
+            </form>
+            {% if suggested_name %}
+            <p style="color: red;">Did you mean: <a href="#" onclick="useSuggestedName('{{ suggested_name }}');">{{ suggested_name }}</a></p>
+            {% endif %}
+        </div>
+        <script>
+            function useSuggestedName(suggestedName) {
+                document.getElementById('last_name_input').value = suggestedName;
+                document.getElementById('searchForm').submit();
+            }
+        </script>
+        <div class="results-section">
+            <div class="results-title">
+                <h2>Search Results: {{ cleaned_last_name }}</h2>
+                {% if overlapping_results %}
+                <div style="position: relative;">
+                    <img src="{{ url_for('static', filename='error.png') }}" alt="Error Icon">
+                    <div class="tooltip-box">Overlapping Last Name</div>
+                </div>
+                {% endif %}
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Program</th>
+                        <th>Last Name</th>
+                        <th>Case Worker</th>
+                        <th>EXT</th>
+                        <th>Backup</th>
+                        <th>Supervisor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if results %}
+                        {% for result in results %}
+                            <tr>
+                                <td>{{ result.Program }}</td>
+                                <td>{{ result.LastName }}</td>
+                                <td>{{ result.CaseWorker }}</td>
+                                <td>{{ result.EXT }}</td>
+                                <td>{{ result.BackupBuddy }}</td>
+                                <td>{{ result.Supervisor }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="6">No results found for '{{ last_name_input }}'.</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            {% if overlapping_results %}
+                <h2>Overlapping Last Name Ranges:</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Program</th>
+                            <th>Last Name</th>
+                            <th>Case Worker</th>
+                            <th>EXT</th>
+                            <th>Backup</th>
+                            <th>Supervisor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in overlapping_results %}
+                            <tr class="highlight">
+                                <td>{{ result.Program }}</td>
+                                <td>{{ result.LastName }}</td>
+                                <td>{{ result.CaseWorker }}</td>
+                                <td>{{ result.EXT }}</td>
+                                <td>{{ result.BackupBuddy }}</td>
+                                <td>{{ result.Supervisor }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    </div>
+    <footer class="footer" id="footer">
+        <p> Jacob George </p>
+    </footer>
+    <script>
+        if (window.location.href.indexOf('/search') > -1) {
+            document.body.classList.add('search-page');
+        }
+    </script>
+</body>
+</html>
